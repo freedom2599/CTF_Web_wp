@@ -2,9 +2,7 @@
 
 包含两部分
 
-## 第一部分：CTF_web_study
-
-[CTF_web_study]: CTF_web_study/CTF_web_study.md	"CTF_web_study"
+## 第一部分：[CTF_web_study](CTF_web_study/CTF_web_study.md)
 
 记录CTFweb方向学习过程中的遇到的知识点汇总
 
@@ -17,8 +15,9 @@
 
 目前收录：
 
-[ctfshow—web入门]: CTFSHOW-WEB/CTFSHOW-WEB.md	"ctfshow—web入门"
-[polarweb方向]: polar_web/polar_web.md	"polarweb方向"
+[CTFSHOW-WEB](CTFSHOW-WEB/CTFSHOW-WEB)
+
+[polarweb方向](polar_web/polar_web.md) 
 
 
 
