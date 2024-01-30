@@ -15,7 +15,7 @@
 
 目前收录：
 
-[CTFSHOW-WEB](CTFSHOW-WEB/CTFSHOW-WEB)
+[CTFSHOW-WEB](CTFSHOW-WEB/CTFSHOW-WEB.md)
 
 [polarweb方向](polar_web/polar_web.md) 
 
