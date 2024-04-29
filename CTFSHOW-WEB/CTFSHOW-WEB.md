@@ -3571,3 +3571,12 @@ $pi=base_convert(37907361743,10,36)(dechex(1598506324));$$pi{abs}($$pi{acos});&a
 cat一下得到flag
 
 ![image-20240429125418817](image/image-20240429125418817.png)
+
+---
+
+## 四、php特性
+
+### web89
+
+
+
